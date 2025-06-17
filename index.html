@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blocky Block</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: Arial, sans-serif;
+            touch-action: none;
+            /* Prevents default touch actions like scrolling/zooming */
+            background-color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            margin: 0;
+            overflow: hidden;
+            /* Prevent body scroll on mobile */
+        }
+
+        .game-wrapper {
+            width: 100%;
+            max-width: 28rem;
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+            /* Include padding in element's total width and height */
+        }
+
+        /* Header Styles */
+        .game-header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .game-title {
+            margin: 0;
+            font-size: 2.25rem;
+            font-weight: 900;
+            color: #1e293b;
+            text-transform: uppercase;
+            /* All caps for the title */
+        }
+
+        .score-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 1rem;
+            background-color: #e2e8f0;
+            padding: 0.5rem;
+            /* Adjusted padding */
+            border-radius: 0.5rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .score-item {
+            text-align: center;
+            flex: 1;
+            /* Distribute space evenly */
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        /* Main Game Area */
+        .game-main {
+            width: 100%;
+            background-color: #cbd5e1;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 0.5rem;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.25rem;
+        }
+
+        .grid-cell {
+            width: 100%;
+            padding-bottom: 100%;
+            /* For square cells */
+            position: relative;
+            background-color: rgba(226, 232, 240, 0.5);
+            border-radius: 0.375rem;
+        }
+
+        .grid-cell-content {
+            position: absolute;
+            top: 2px;
+            bottom: 2px;
+            left: 2px;
+            right: 2px;
+            border-radius: 0.25rem;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        /* Block Selection Area */
+        .blocks-footer {
+            width: 100%;
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            min-height: 8rem;
+            /* Increased min-height for better touch targets */
+            flex-wrap: wrap;
+            /* Allow blocks to wrap on smaller screens */
+            gap: 1rem;
+            /* Space between blocks */
+            box-sizing: border-box;
+        }
+
+        .block-container {
+            padding: 0.5rem;
+            cursor: grab;
+            touch-action: none;
+            /* Prevents default touch actions on blocks */
+            flex-shrink: 0;
+            /* Prevent blocks from shrinking */
+            min-width: 60px;
+            /* Ensure a minimum size for touch */
+            min-height: 60px;
+            /* Ensure a minimum size for touch */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .block-container.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+            position: absolute;
+            /* Allow drag preview to float */
+            z-index: 1000;
+            /* Bring to front during drag */
+        }
+
+        .block-container.used {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .block-grid {
+            display: grid;
+            gap: 2px;
+        }
+
+        .block-cell {
+            width: 100%;
+            padding-bottom: 100%;
+            position: relative;
+        }
+
+        .block-cell-content {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            left: 1px;
+            right: 1px;
+            border-radius: 4px;
+        }
+
+        /* Block Colors */
+        .block-color-cyan {
+            background-color: #06b6d4;
+        }
+
+        .block-color-blue {
+            background-color: #2563eb;
+        }
+
+        .block-color-orange {
+            background-color: #f97316;
+        }
+
+        .block-color-yellow {
+            background-color: #facc15;
+        }
+
+        .block-color-green {
+            background-color: #22c55e;
+        }
+
+        .block-color-purple {
+            background-color: #9333ea;
+        }
+
+        .block-color-red {
+            background-color: #ef4444;
+        }
+
+        .block-color-slate {
+            background-color: #64748b;
+        }
+
+
+        /* Game Over Modal */
+        .game-over-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            z-index: 2000;
+            /* Ensure modal is on top */
+        }
+
+        .game-over-modal.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 2rem;
+            text-align: center;
+            transform: translateY(0);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .modal-title {
+            font-size: 2.25rem;
+            font-weight: 900;
+            color: #1e293b;
+        }
+
+        .modal-message {
+            color: #475569;
+            margin-top: 0.5rem;
+        }
+
+        .final-score {
+            font-size: 3.75rem;
+            font-weight: 900;
+            color: #2563eb;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .play-again-button {
+            width: 100%;
+            background-color: #2563eb;
+            color: #ffffff;
+            font-weight: 700;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .play-again-button:hover {
+            background-color: #1d4ed8;
+            transform: scale(1.05);
+        }
+
+        .play-again-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.5);
+        }
+
+        /* Game Logic Related Styles */
+        .clearing {
+            transform: scale(0);
+            background-color: #ffffff !important;
+        }
+
+        .highlight .grid-cell-content {
+            background-color: rgba(255, 255, 255, 0.6) !important;
+            transform: scale(0.95);
+        }
+
+        .invalid .grid-cell-content {
+            background-color: rgba(239, 68, 68, 0.4) !important;
+        }
+
+        @media (min-width: 768px) {
+            .score-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="game-wrapper">
+
+        <header class="game-header">
+            <h1 class="game-title">BLOCKY BLOCK</h1>
+            <div class="score-display">
+                <div class="score-item">
+                    <span class="score-label">SCORE</span>
+                    <div id="current-score" class="score-value">0</div>
+                </div>
+                <div class="score-item">
+                    <span class="score-label">HIGH SCORE</span>
+                    <div id="high-score" class="score-value">0</div>
+                </div>
+            </div>
+        </header>
+
+        <main id="game-container" class="game-main">
+            <div id="grid" class="grid-container"></div>
+        </main>
+
+        <footer id="blocks-container" class="blocks-footer">
+        </footer>
+
+    </div>
+
+    <div id="game-over-modal" class="game-over-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">Game Over</h2>
+            <p class="modal-message">Your final score is:</p>
+            <p id="final-score" class="final-score">0</p>
+            <button id="play-again-btn" class="play-again-button">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const GRID_SIZE = 8;
+            const TOUCH_OFFSET_Y = -150; // Offset for touch position to raise the block above the finger
+            const gridElement = document.getElementById('grid');
+            const blocksContainer = document.getElementById('blocks-container');
+            const currentScoreEl = document.getElementById('current-score');
+            const highScoreEl = document.getElementById('high-score');
+            const gameOverModal = document.getElementById('game-over-modal');
+            const finalScoreEl = document.getElementById('final-score');
+            const playAgainBtn = document.getElementById('play-again-btn');
+
+            let gridState = [];
+            let score = 0;
+            let highScore = localStorage.getItem('gridBlitzHighScore') || 0;
+            let currentBlocks = [];
+            let draggedBlock = null;
+            let draggedBlockElement = null; // Store the actual element being dragged
+            let audioContext;
+            let highlightedCells = [];
+
+            // Mapping for block colors to local CSS classes
+            const blockColorMap = {
+                'bg-cyan-500': 'block-color-cyan',
+                'bg-blue-600': 'block-color-blue',
+                'bg-orange-500': 'block-color-orange',
+                'bg-yellow-400': 'block-color-yellow',
+                'bg-green-500': 'block-color-green',
+                'bg-purple-600': 'block-color-purple',
+                'bg-red-600': 'block-color-red',
+                'bg-slate-500': 'block-color-slate'
+            };
+
+            const blockShapes = {
+                I: { shape: [[1, 1, 1, 1]], color: blockColorMap['bg-cyan-500'] },
+                J: { shape: [[1, 0, 0], [1, 1, 1]], color: blockColorMap['bg-blue-600'] },
+                L: { shape: [[0, 0, 1], [1, 1, 1]], color: blockColorMap['bg-orange-500'] },
+                O: { shape: [[1, 1], [1, 1]], color: blockColorMap['bg-yellow-400'] },
+                S: { shape: [[0, 1, 1], [1, 1, 0]], color: blockColorMap['bg-green-500'] },
+                T: { shape: [[0, 1, 0], [1, 1, 1]], color: blockColorMap['bg-purple-600'] },
+                Z: { shape: [[1, 1, 0], [0, 1, 1]], color: blockColorMap['bg-red-600'] },
+                I_V: { shape: [[1], [1], [1], [1]], color: blockColorMap['bg-cyan-500'] },
+                DOT: { shape: [[1]], color: blockColorMap['bg-slate-500'] },
+                I_3: { shape: [[1, 1, 1]], color: blockColorMap['bg-cyan-500'] },
+                I_3V: { shape: [[1], [1], [1]], color: blockColorMap['bg-cyan-500'] },
+                L_S: { shape: [[1, 0], [1, 1]], color: blockColorMap['bg-orange-500'] }
+            };
+            const blockTypes = Object.keys(blockShapes);
+
+            function initAudio() {
+                try {
+                    if (!audioContext) {
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                } catch (e) {
+                    console.warn("Web Audio API is not supported in this browser.");
+                }
+            }
+
+            function playSound(type) {
+                if (!audioContext) return;
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+
+                switch (type) {
+                    case 'place':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(261.63, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.3, audioContext.currentTime + 0.02);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.1);
+                        break;
+                    case 'clear':
+                        oscillator.type = 'triangle';
+                        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.4, audioContext.currentTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.2);
+                        break;
+                    case 'combo':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.4, audioContext.currentTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.3);
+                        break;
+                    case 'gameover':
+                        oscillator.type = 'square';
+                        oscillator.frequency.setValueAtTime(130.81, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+                        gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.5);
+                        break;
+                }
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 1);
+            }
+
+
+            function createGrid() {
+                gridElement.innerHTML = '';
+                gridState = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+                for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    const content = document.createElement('div');
+                    content.classList.add('grid-cell-content');
+                    cell.appendChild(content);
+                    const row = Math.floor(i / GRID_SIZE);
+                    const col = i % GRID_SIZE;
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    gridElement.appendChild(cell);
+                }
+            }
+
+            function updateScore(points) {
+                score += points;
+                currentScoreEl.textContent = score;
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreEl.textContent = highScore;
+                    localStorage.setItem('gridBlitzHighScore', highScore);
+                }
+            }
+
+            function generateBlocks() {
+                blocksContainer.innerHTML = '';
+                currentBlocks = [];
+                for (let i = 0; i < 3; i++) {
+                    const blockType = blockTypes[Math.floor(Math.random() * blockTypes.length)];
+                    const blockData = { ...blockShapes[blockType], type: blockType, id: i };
+                    currentBlocks.push(blockData);
+                    const blockElement = createBlockElement(blockData);
+                    blocksContainer.appendChild(blockElement);
+                }
+            }
+
+            function createBlockElement(blockData) {
+                const container = document.createElement('div');
+                container.classList.add('block-container');
+                container.draggable = true; // Still keep for mouse drag
+                container.dataset.blockId = blockData.id;
+
+                const blockGrid = document.createElement('div');
+                const shape = blockData.shape;
+                const rows = shape.length;
+                const cols = shape[0].length;
+                blockGrid.classList.add('block-grid');
+                blockGrid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                blockGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                blockGrid.style.width = `${cols * 24}px`; // Adjust block display size
+                blockGrid.style.height = `${rows * 24}px`; // Adjust block display size
+
+                let cellCount = 0;
+                shape.forEach(row => {
+                    row.forEach(cell => {
+                        const cellDiv = document.createElement('div');
+                        cellDiv.classList.add('block-cell');
+                        if (cell) {
+                            const content = document.createElement('div');
+                            content.classList.add('block-cell-content', blockData.color);
+                            cellDiv.appendChild(content);
+                            cellCount++;
+                        }
+                        blockGrid.appendChild(cellDiv);
+                    });
+                });
+
+                blockData.cellCount = cellCount;
+                container.appendChild(blockGrid);
+                return container;
+            }
+
+            function getTouchTargetCell(e) {
+                // Use e.changedTouches for touchend/touchcancel, and e.touches for touchstart/touchmove
+                const touch = (e.type === 'touchend' || e.type === 'touchcancel') ? e.changedTouches[0] : e.touches[0];
+                if (!touch) return null; // Defensive check for when touch might not exist
+
+                // Temporarily hide the dragged element (clone) to accurately get the element underneath
+                const originalVisibility = draggedBlockElement ? draggedBlockElement.style.visibility : '';
+                const originalPointerEvents = draggedBlockElement ? draggedBlockElement.style.pointerEvents : '';
+
+                if (draggedBlockElement) {
+                    draggedBlockElement.style.visibility = 'hidden';
+                    draggedBlockElement.style.pointerEvents = 'none'; // Ensure it's not blocking
+                }
+
+                // Calculate the adjusted Y coordinate for elementFromPoint
+                // This accounts for the visual offset applied to the draggedBlockElement
+                const clientX = touch.clientX;
+                const clientY = touch.clientY + (TOUCH_OFFSET_Y); // Add the inverse of the offset
+
+                const targetElement = document.elementFromPoint(clientX, clientY);
+
+                // Restore visibility and pointer-events
+                if (draggedBlockElement) {
+                    draggedBlockElement.style.visibility = originalVisibility;
+                    draggedBlockElement.style.pointerEvents = originalPointerEvents;
+                }
+
+                return targetElement ? targetElement.closest('.grid-cell') : null;
+            }
+
+            // --- Mouse Drag Event Handlers ---
+            function handleDragStart(e) {
+                const blockContainer = e.target.closest('.block-container');
+                if (!blockContainer || blockContainer.classList.contains('used')) return;
+                const blockId = blockContainer.dataset.blockId;
+                draggedBlock = currentBlocks[blockId];
+                draggedBlockElement = blockContainer; // Store reference to the element
+                if (!draggedBlock) return;
+                e.dataTransfer.setData('text/plain', blockId);
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => draggedBlockElement.classList.add('dragging'), 0);
+            }
+
+            function handleDragEnd(e) {
+                if (draggedBlockElement) {
+                    draggedBlockElement.classList.remove('dragging');
+                }
+                clearPreview();
+                draggedBlock = null;
+                draggedBlockElement = null;
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault(); // Necessary to allow drop
+                const targetCell = e.target.closest('.grid-cell');
+                if (targetCell) {
+                    const row = parseInt(targetCell.dataset.row);
+                    const col = parseInt(targetCell.dataset.col);
+                    showPreview(draggedBlock, row, col);
+                }
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                clearPreview();
+                const targetCell = e.target.closest('.grid-cell');
+                if (!targetCell || !draggedBlock) return;
+
+                const row = parseInt(targetCell.dataset.row);
+                const col = parseInt(targetCell.dataset.col);
+
+                if (isValidPlacement(draggedBlock, row, col)) {
+                    placeBlock(draggedBlock, row, col);
+                    if (draggedBlockElement) {
+                        draggedBlockElement.classList.add('used');
+                        draggedBlockElement.draggable = false;
+                    }
+                    draggedBlock = null;
+                    draggedBlockElement = null; // Clear reference
+
+                    if (document.querySelectorAll('.block-container:not(.used)').length === 0) {
+                        setTimeout(generateBlocks, 200);
+                    }
+                    setTimeout(checkGameOver, 300);
+                }
+            }
+
+            // --- Touch Event Handlers ---
+            function handleTouchStart(e) {
+                e.preventDefault(); // Prevent scrolling and default browser behavior
+                const blockContainer = e.target.closest('.block-container');
+                if (!blockContainer || blockContainer.classList.contains('used')) return;
+
+                const blockId = blockContainer.dataset.blockId;
+                draggedBlock = currentBlocks[blockId];
+
+                if (!draggedBlock) return;
+
+                // Make a clone to visually "drag"
+                const clone = blockContainer.cloneNode(true);
+                clone.classList.add('dragging');
+                clone.style.position = 'absolute';
+                // Apply the offset here
+                clone.style.left = `${e.touches[0].clientX - blockContainer.offsetWidth / 2}px`;
+                clone.style.top = `${e.touches[0].clientY - blockContainer.offsetHeight / 2 + TOUCH_OFFSET_Y}px`;
+                clone.style.pointerEvents = 'none'; // So it doesn't interfere with elementFromPoint
+                document.body.appendChild(clone);
+                draggedBlockElement = clone; // Update draggedBlockElement to the clone for dragging
+
+                // Temporarily hide the original block
+                blockContainer.style.visibility = 'hidden';
+                blockContainer.style.pointerEvents = 'none'; // Prevent original from being target
+            }
+
+            function handleTouchMove(e) {
+                e.preventDefault(); // Prevent scrolling
+                if (!draggedBlock || !draggedBlockElement) return;
+
+                // Update the position of the cloned element with the offset
+                draggedBlockElement.style.left = `${e.touches[0].clientX - draggedBlockElement.offsetWidth / 2}px`;
+                draggedBlockElement.style.top = `${e.touches[0].clientY - draggedBlockElement.offsetHeight / 2 + TOUCH_OFFSET_Y}px`;
+
+                const targetCell = getTouchTargetCell(e);
+                if (targetCell) {
+                    const row = parseInt(targetCell.dataset.row);
+                    const col = parseInt(targetCell.dataset.col);
+                    showPreview(draggedBlock, row, col);
+                } else {
+                    clearPreview(); // Clear preview if not over a valid cell
+                }
+            }
+
+            function handleTouchEnd(e) {
+                e.preventDefault(); // Prevent default touch behavior
+                if (!draggedBlock || !draggedBlockElement) return;
+
+                // Get the original block container from its ID
+                const originalBlockContainer = document.querySelector(`.block-container[data-block-id='${draggedBlock.id}']`);
+
+                const targetCell = getTouchTargetCell(e); // Use the corrected getTouchTargetCell
+                let placed = false;
+
+                if (targetCell) {
+                    const row = parseInt(targetCell.dataset.row);
+                    const col = parseInt(targetCell.dataset.col);
+
+                    if (isValidPlacement(draggedBlock, row, col)) {
+                        placeBlock(draggedBlock, row, col);
+                        if (originalBlockContainer) {
+                            originalBlockContainer.classList.add('used');
+                            originalBlockContainer.draggable = false;
+                        }
+                        placed = true;
+                    }
+                }
+
+                // Remove the cloned element
+                draggedBlockElement.remove();
+                draggedBlockElement = null;
+
+                // Make original block visible and re-enable pointer events if it wasn't placed
+                if (originalBlockContainer) {
+                    if (!placed) {
+                        originalBlockContainer.style.visibility = 'visible';
+                        originalBlockContainer.style.pointerEvents = 'auto'; // Re-enable pointer events
+                    } else {
+                        // If placed, ensure it's still hidden and inaccessible
+                        originalBlockContainer.style.visibility = 'hidden'; // Keep original block hidden if used
+                        originalBlockContainer.style.pointerEvents = 'none';
+                    }
+                }
+
+                clearPreview();
+                draggedBlock = null;
+
+                if (document.querySelectorAll('.block-container:not(.used)').length === 0) {
+                    setTimeout(generateBlocks, 200);
+                }
+                setTimeout(checkGameOver, 300);
+            }
+
+
+            function showPreview(block, startRow, startCol) {
+                clearPreview();
+                if (!block) return;
+                const shape = block.shape;
+                const placementIsValid = isValidPlacement(block, startRow, startCol);
+
+                shape.forEach((row, r) => {
+                    row.forEach((cell, c) => {
+                        if (cell) {
+                            const gridRow = startRow + r;
+                            const gridCol = startCol + c;
+                            if (gridRow >= 0 && gridRow < GRID_SIZE && gridCol >= 0 && gridCol < GRID_SIZE) {
+                                const domCell = gridElement.children[gridRow * GRID_SIZE + gridCol];
+                                domCell.classList.add(placementIsValid ? 'highlight' : 'invalid');
+                                highlightedCells.push(domCell);
+                            }
+                        }
+                    });
+                });
+            }
+
+            function clearPreview() {
+                highlightedCells.forEach(cell => cell.classList.remove('highlight', 'invalid'));
+                highlightedCells = [];
+            }
+
+            function isValidPlacement(block, startRow, startCol) {
+                const shape = block.shape;
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c]) {
+                            const gridRow = startRow + r;
+                            const gridCol = startCol + c;
+                            if (gridRow < 0 || gridRow >= GRID_SIZE || gridCol < 0 || gridCol >= GRID_SIZE || gridState[gridRow][gridCol]) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function placeBlock(block, startRow, startCol) {
+                const shape = block.shape;
+                shape.forEach((row, r) => {
+                    row.forEach((cell, c) => {
+                        if (cell) {
+                            const gridRow = startRow + r;
+                            const gridCol = startCol + c;
+                            gridState[gridRow][gridCol] = 1;
+                            const domCell = gridElement.children[gridRow * GRID_SIZE + gridCol].querySelector('.grid-cell-content');
+                            domCell.className = 'grid-cell-content ' + block.color;
+                        }
+                    });
+                });
+                updateScore(block.cellCount);
+                playSound('place');
+                checkAndClearLines();
+            }
+
+            function checkAndClearLines() {
+                let linesToClear = { rows: [], cols: [] };
+
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (gridState[r].every(cell => cell === 1)) {
+                        linesToClear.rows.push(r);
+                    }
+                }
+
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let colFull = true;
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        if (gridState[r][c] === 0) {
+                            colFull = false;
+                            break;
+                        }
+                    }
+                    if (colFull) {
+                        linesToClear.cols.push(c);
+                    }
+                }
+
+                const totalLines = linesToClear.rows.length + linesToClear.cols.length;
+                if (totalLines > 0) {
+                    animateClear(linesToClear, totalLines);
+                }
+            }
+
+            function animateClear(lines, totalLines) {
+                let cellsToClear = [];
+                lines.rows.forEach(r => {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const cell = gridElement.children[r * GRID_SIZE + c].querySelector('.grid-cell-content');
+                        if (!cell.classList.contains('clearing')) {
+                            cell.classList.add('clearing');
+                            cellsToClear.push({ r, c });
+                        }
+                    }
+                });
+                lines.cols.forEach(c => {
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        const cell = gridElement.children[r * GRID_SIZE + c].querySelector('.grid-cell-content');
+                        if (!cell.classList.contains('clearing')) {
+                            cell.classList.add('clearing');
+                            cellsToClear.push({ r, c });
+                        }
+                    }
+                });
+
+                const lineClearScore = totalLines * 10;
+                const comboBonus = totalLines > 1 ? (totalLines - 1) * 5 + (totalLines - 1) * 10 : 0;
+                updateScore(lineClearScore + comboBonus);
+                playSound(totalLines > 1 ? 'combo' : 'clear');
+
+                setTimeout(() => {
+                    cellsToClear.forEach(pos => {
+                        gridState[pos.r][pos.c] = 0;
+                        const cellContent = gridElement.children[pos.r * GRID_SIZE + pos.c].querySelector('.grid-cell-content');
+                        cellContent.className = 'grid-cell-content'; // Reset class
+                    });
+                }, 200);
+            }
+
+            function checkGameOver() {
+                const availableBlocks = currentBlocks.filter((_, id) => {
+                    const el = document.querySelector(`.block-container[data-block-id='${id}']`);
+                    return el && !el.classList.contains('used');
+                });
+
+                if (availableBlocks.length === 0 && document.querySelectorAll('.block-container').length > 0) {
+                    // This scenario means new blocks are pending generation, so not game over yet.
+                    return;
+                }
+
+                // Check if any of the available blocks can be placed anywhere on the grid
+                let canPlaceAnyBlock = false;
+                for (const block of availableBlocks) {
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        for (let c = 0; c < GRID_SIZE; c++) {
+                            if (isValidPlacement(block, r, c)) {
+                                canPlaceAnyBlock = true;
+                                break;
+                            }
+                        }
+                        if (canPlaceAnyBlock) break;
+                    }
+                    if (canPlaceAnyBlock) break;
+                }
+
+                if (!canPlaceAnyBlock) {
+                    endGame();
+                }
+            }
+
+
+            function endGame() {
+                playSound('gameover');
+                finalScoreEl.textContent = score;
+                gameOverModal.classList.add('show');
+            }
+
+            function restartGame() {
+                score = 0;
+                currentScoreEl.textContent = '0';
+                gameOverModal.classList.remove('show');
+                init();
+            }
+
+            function init() {
+                highScoreEl.textContent = highScore;
+                createGrid();
+                generateBlocks();
+            }
+
+            // Event Listeners for both mouse and touch
+            blocksContainer.addEventListener('dragstart', handleDragStart);
+            blocksContainer.addEventListener('dragend', handleDragEnd);
+            gridElement.addEventListener('dragover', handleDragOver);
+            gridElement.addEventListener('dragleave', clearPreview);
+            gridElement.addEventListener('drop', handleDrop);
+
+            // Touch events
+            blocksContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.body.addEventListener('touchmove', handleTouchMove, { passive: false }); // Listen on body to track touches outside specific elements
+            document.body.addEventListener('touchend', handleTouchEnd, { passive: false });
+            document.body.addEventListener('touchcancel', handleTouchEnd, { passive: false }); // Handle touchcancel as well
+
+            playAgainBtn.addEventListener('click', restartGame);
+            document.body.addEventListener('click', initAudio, { once: true });
+
+
+            // Initialize the game
+            init();
+        });
+    </script>
+</body>
+
+</html>
